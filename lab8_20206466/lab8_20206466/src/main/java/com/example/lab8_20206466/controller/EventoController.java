@@ -34,16 +34,17 @@ public class EventoController {
             @RequestParam(value = "fecha", required = false)
             @DateTimeFormat(pattern = "dd-MM-yyyy") String fechaTexto) {
 
+        // Obtener todos los eventos de la base de datos
         List<Evento> eventos = eventoRepository.findAll();
 
-        // Filtrar por fecha si se proporciona
+        // Filtrar por fecha solo si en caso se indica
         if (fechaTexto != null && !fechaTexto.isEmpty()) {
             try {
                 // Convertir texto a Date
                 SimpleDateFormat formatoEntrada = new SimpleDateFormat("dd-MM-yyyy");
                 Date fechaEntrada = formatoEntrada.parse(fechaTexto);
 
-                // Convertir la fecha de entrada al formato que está en la BD lab8gtics
+                // Convertir la fecha de entrada al formato que está en la BD (yyyy-MM-dd)
                 SimpleDateFormat formatoSalida = new SimpleDateFormat("yyyy-MM-dd");
                 String fechaFormateada = formatoSalida.format(fechaEntrada);
 
@@ -56,11 +57,12 @@ public class EventoController {
             }
         }
 
-        // Ordenar por fecha del evento
+        // Ordenar los eventos por fecha
         eventos.sort(Comparator.comparing(Evento::getFecha));
 
         return eventos;
     }
+
 
     /*Crear un nuevo evento en el sistema
     con los atributos mencionados anteriormente.
@@ -68,7 +70,7 @@ public class EventoController {
     Al agregar, el evento debe iniciar con cero reservas.*/
     // 2. Crear un nuevo evento
     @PostMapping(value = {"/crear", ""})
-    public ResponseEntity<HashMap<String,Object>> crearEvento(@RequestBody Evento evento) {
+    public ResponseEntity<HashMap<String, Object>> crearEvento(@RequestBody Evento evento) {
         HashMap<String, Object> responseJson = new HashMap<>();
 
         // Validar que la fecha del evento sea en el futuro
@@ -83,7 +85,7 @@ public class EventoController {
         eventoRepository.save(evento);
 
         responseJson.put("mensaje", "Evento creado correctamente.");
-        responseJson.put("evento", evento);
+        responseJson.put("estado", "creado");
         return ResponseEntity.status(HttpStatus.CREATED).body(responseJson);
     }
 
