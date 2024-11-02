@@ -3,12 +3,21 @@ package com.example.lab8_20206466.controller;
 import com.example.lab8_20206466.entity.*;
 import com.example.lab8_20206466.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.Comparator;
+import java.text.ParseException;
 
 @RestController
 @RequestMapping("/evento")
@@ -20,9 +29,37 @@ public class EventoController {
    Un endpoint para obtener todos los eventos disponibles
    que permita filtrar por fecha. La respuesta debe ser
    una lista ordenada por fecha del evento y contener los siguientes atributos:*/
-    @GetMapping(value={"/list",""})
-    public List<Evento> listaEventos(){
-        return eventoRepository.findAll();
+    @GetMapping(value = {"/list", ""})
+    public List<Evento> listaEventos(
+            @RequestParam(value = "fecha", required = false)
+            @DateTimeFormat(pattern = "dd-MM-yyyy") String fechaTexto) {
+
+        List<Evento> eventos = eventoRepository.findAll();
+
+        // Filtrar por fecha si se proporciona
+        if (fechaTexto != null && !fechaTexto.isEmpty()) {
+            try {
+                // Convertir texto a Date
+                SimpleDateFormat formatoEntrada = new SimpleDateFormat("dd-MM-yyyy");
+                Date fechaEntrada = formatoEntrada.parse(fechaTexto);
+
+                // Convertir la fecha de entrada al formato que está en la BD lab8gtics
+                SimpleDateFormat formatoSalida = new SimpleDateFormat("yyyy-MM-dd");
+                String fechaFormateada = formatoSalida.format(fechaEntrada);
+
+                // Filtrar eventos que coinciden con la fecha
+                eventos = eventos.stream()
+                        .filter(evento -> formatoSalida.format(evento.getFecha()).equals(fechaFormateada))
+                        .collect(Collectors.toList());
+            } catch (ParseException e) {
+                e.printStackTrace(); // Manejo de excepciones si el formato es incorrecto
+            }
+        }
+
+        // Ordenar por fecha del evento
+        eventos.sort(Comparator.comparing(Evento::getFecha));
+
+        return eventos;
     }
 
     /*Crear un nuevo evento en el sistema
@@ -30,7 +67,7 @@ public class EventoController {
     Validar que la fecha del evento sea en el futuro.
     Al agregar, el evento debe iniciar con cero reservas.*/
     // 2. Crear un nuevo evento
-    @PostMapping
+    @PostMapping(value = {"/crear", ""})
     public ResponseEntity<HashMap<String,Object>> crearEvento(@RequestBody Evento evento) {
         HashMap<String, Object> responseJson = new HashMap<>();
 

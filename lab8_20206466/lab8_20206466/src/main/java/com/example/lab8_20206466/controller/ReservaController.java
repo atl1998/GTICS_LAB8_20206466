@@ -5,10 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+
+import java.util.*;
 
 @RestController
 @RequestMapping("/reserva")
@@ -20,10 +18,17 @@ public class ReservaController {
     private EventoRepository eventoRepository;
 
     @PostMapping(value="/crear")
-    public ResponseEntity<HashMap<String,Object>> reservarEvento(@RequestParam Integer idevento,
-                                           @RequestParam String nombrePersona,
-                                           @RequestParam String correoPersona,
-                                           @RequestParam int numeroCupos) {
+    public ResponseEntity<?> reservarEvento(
+            @RequestParam Integer idevento,
+            @RequestParam String nombrePersona,
+            @RequestParam String correoPersona,
+            @RequestParam int numeroCupos) {
+
+        // Validar que el número de cupos sea positivo
+        if (numeroCupos <= 0) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("error", "El número de cupos debe ser mayor que cero."));
+        }
+
         HashMap<String, Object> responseJson = new HashMap<>();
 
         // Buscar el evento por ID
@@ -36,8 +41,7 @@ public class ReservaController {
         Evento evento = optionalEvento.get();
 
         // Validar disponibilidad de cupos
-        Integer cuposDisponibles;
-        cuposDisponibles = evento.getCapacidadmaxima() - evento.getReservasactuales();
+        Integer cuposDisponibles = evento.getCapacidadmaxima() - evento.getReservasactuales();
         if (numeroCupos > cuposDisponibles) {
             responseJson.put("error", "No hay suficientes cupos disponibles para este evento.");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseJson);
@@ -46,14 +50,14 @@ public class ReservaController {
         // Crear la nueva reserva
         Reserva reserva = new Reserva();
         reserva.setEvento(evento);
-        reserva.setNombre(nombrePersona);
-        reserva.setCorreo(correoPersona);
+        reserva.setNombrepersona(nombrePersona);
+        reserva.setCorreopersona(correoPersona);
         reserva.setNumerocupos(numeroCupos);
 
         // Actualizar la cantidad de reservas del evento
         evento.setReservasactuales(evento.getReservasactuales() + numeroCupos);
-        reservaRepository.save(reserva);
-        eventoRepository.save(evento);
+        reservaRepository.save(reserva); // Guardar reserva
+        eventoRepository.save(evento); // Actualizar evento
 
         responseJson.put("mensaje", "Reserva realizada con éxito.");
         responseJson.put("reserva", reserva);
@@ -64,11 +68,23 @@ public class ReservaController {
     public ResponseEntity<HashMap<String, Object>> borrarReserva(@PathVariable("id") Integer id) {
         HashMap<String, Object> responseMap = new HashMap<>();
 
-        // Verificar si la reserva existe
-        if (reservaRepository.existsById(id)) {
+        // Buscar la reserva por ID
+        Optional<Reserva> reservaOptional = reservaRepository.findById(id);
+
+        if (reservaOptional.isPresent()) {
+            Reserva reserva = reservaOptional.get();
+            Evento evento = reserva.getEvento();
+
+            // Sumamos los cupos de la reserva eliminada a las reservas actuales del evento
+            evento.setReservasactuales(evento.getReservasactuales() - reserva.getNumerocupos());
+
             try {
+                // Guardar cambios en el evento y luego borrar la reserva
+                eventoRepository.save(evento);
                 reservaRepository.deleteById(id);
+
                 responseMap.put("estado", "borrado");
+                responseMap.put("msg", "Reserva eliminada y cupos liberados.");
                 return ResponseEntity.ok(responseMap);
             } catch (Exception ex) {
                 responseMap.put("estado", "error");

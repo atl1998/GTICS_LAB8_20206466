@@ -15,10 +15,10 @@ public class Reserva{
     private Integer idreserva;
 
     @Column
-    private String nombre;
+    private String nombrepersona;
 
     @Column
-    private String correo;
+    private String correopersona;
 
     @Column
     private Integer numerocupos;
