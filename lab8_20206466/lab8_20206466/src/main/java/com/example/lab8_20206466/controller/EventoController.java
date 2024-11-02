@@ -80,6 +80,12 @@ public class EventoController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseJson);
         }
 
+        // Validar que la capacidad máxima sea un valor positivo
+        if (evento.getCapacidadmaxima() < 0) {
+            responseJson.put("error", "La capacidad máxima debe ser un valor entero mayor que cero .");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseJson);
+        }
+
         // Iniciar el evento con cero reservas actuales
         evento.setReservasactuales(0);
         eventoRepository.save(evento);
