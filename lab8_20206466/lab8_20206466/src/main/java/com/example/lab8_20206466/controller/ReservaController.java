@@ -65,36 +65,45 @@ public class ReservaController {
     }
 
     @DeleteMapping(value = "/borrar/{id}")
-    public ResponseEntity<HashMap<String, Object>> borrarReserva(@PathVariable("id") Integer id) {
+    public ResponseEntity<HashMap<String, Object>> borrarReserva(@PathVariable("id") String id) {
         HashMap<String, Object> responseMap = new HashMap<>();
 
-        // Buscar la reserva por ID
-        Optional<Reserva> reservaOptional = reservaRepository.findById(id);
+        // Validar si el ID es un número
+        try {
+            Integer idNumber = Integer.parseInt(id);
 
-        if (reservaOptional.isPresent()) {
-            Reserva reserva = reservaOptional.get();
-            Evento evento = reserva.getEvento();
+            // Buscar la reserva por ID
+            Optional<Reserva> reservaOptional = reservaRepository.findById(idNumber);
 
-            // Sumamos los cupos de la reserva eliminada a las reservas actuales del evento
-            evento.setReservasactuales(evento.getReservasactuales() - reserva.getNumerocupos());
+            if (reservaOptional.isPresent()) {
+                Reserva reserva = reservaOptional.get();
+                Evento evento = reserva.getEvento();
 
-            try {
-                // Guardar cambios en el evento y luego borrar la reserva
-                eventoRepository.save(evento);
-                reservaRepository.deleteById(id);
+                // Sumamos los cupos de la reserva eliminada a las reservas actuales del evento
+                evento.setReservasactuales(evento.getReservasactuales() - reserva.getNumerocupos());
 
-                responseMap.put("estado", "borrado");
-                responseMap.put("msg", "Reserva eliminada y cupos liberados.");
-                return ResponseEntity.ok(responseMap);
-            } catch (Exception ex) {
+                try {
+                    // Guardar cambios en el evento y luego borrar la reserva
+                    eventoRepository.save(evento);
+                    reservaRepository.deleteById(idNumber);
+
+                    responseMap.put("estado", "borrado");
+                    responseMap.put("msg", "Reserva eliminada y cupos liberados.");
+                    return ResponseEntity.ok(responseMap);
+                } catch (Exception ex) {
+                    responseMap.put("estado", "error");
+                    responseMap.put("msg", "Error al intentar borrar la reserva: " + ex.getMessage());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+                }
+            } else {
                 responseMap.put("estado", "error");
-                responseMap.put("msg", "Error al intentar borrar la reserva: " + ex.getMessage());
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+                responseMap.put("msg", "No se encontró la reserva con ID: " + id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseMap);
             }
-        } else {
+        } catch (NumberFormatException ex) {
             responseMap.put("estado", "error");
-            responseMap.put("msg", "No se encontró la reserva con ID: " + id);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseMap);
+            responseMap.put("msg", "Formato de ID incorrecto. El ID debe ser un número.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseMap);
         }
     }
 
